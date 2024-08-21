@@ -29,7 +29,7 @@ import requests
 
 # Добавляем версию скрипта
 SCRIPT_VERSION = "5.0.5"
-DOCM_VERSION = "1.0.5"  # Добавляем версию для .docm файла
+DOCM_VERSION = "1.0.6"  # Добавляем версию для .docm файла
 
 GITHUB_REPO = "cyberkek587/drain_tg"
 SCRIPT_NAME = "sort_v5.py"
