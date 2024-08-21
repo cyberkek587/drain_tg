@@ -58,9 +58,9 @@ import requests
 
 # Добавляем версию скрипта
 
-SCRIPT_VERSION = "5.0.2"
+SCRIPT_VERSION = "5.0.3"
 
-DOCM_VERSION = "1.0.1"  # Добавляем версию для .docm файла
+DOCM_VERSION = "1.0.2"  # Добавляем версию для .docm файла
 
 
 
@@ -73,119 +73,64 @@ DOCM_NAME = "word_jpg_auto_v5.docm"
 
 
 def check_for_updates():
-
     """Проверяет наличие обновлений скрипта и .docm файла на GitHub."""
-
     try:
-
         requests.get("https://github.com", timeout=5)
-
     except requests.ConnectionError:
-
         print("Нет подключения к интернету. Пропускаем проверку обновлений.")
-
         return False
-
-
 
     try:
-
         script_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{SCRIPT_NAME}"
-
         docm_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{DOCM_NAME}"
-
         
-
         script_response = requests.get(script_url, timeout=10)
-
         docm_response = requests.get(docm_url, timeout=10)
-
         
-
         update_available = False
-
         
-
         if script_response.status_code == 200:
-
             remote_script = script_response.text
-
             remote_script_version = re.search(r'SCRIPT_VERSION\s*=\s*"([\d.]+)"', remote_script)
-
             if remote_script_version and remote_script_version.group(1) > SCRIPT_VERSION:
-
                 print(f"Доступно обновление скрипта. Текущая версия: {SCRIPT_VERSION}, новая версия: {remote_script_version.group(1)}")
-
                 update_available = True
-
         
-
         if docm_response.status_code == 200:
-
             remote_docm = docm_response.content
-
             remote_docm_version = re.search(r'DOCM_VERSION\s*=\s*"([\d.]+)"', remote_script)
-
             if remote_docm_version and remote_docm_version.group(1) > DOCM_VERSION:
-
                 print(f"Доступно обновление .docm файла. Текущая версия: {DOCM_VERSION}, новая версия: {remote_docm_version.group(1)}")
-
                 update_available = True
-
         
-
         if update_available:
-
             choice = input("Хотите обновить файлы? (да/нет): ").lower()
-
             if choice == 'да':
-
                 print("Обновляем файлы...")
-
                 try:
-
                     with open(__file__, 'w', encoding='utf-8') as file:
-
                         file.write(remote_script)
-
                     with open(DOCM_NAME, 'wb') as file:
-
                         file.write(remote_docm)
-
                     print("Файлы обновлены. Перезапустите программу.")
-
+                    input("Нажмите Enter для завершения...")  # Добавлено ожидание ввода
                     return True
-
                 except Exception as e:
-
                     print(f"Ошибка при обновлении файлов: {e}")
-
                     print("Продолжаем работу с текущими версиями.")
-
+                    input("Нажмите Enter для продолжения...")  # Добавлено ожидание ввода
         else:
-
             print(f"У вас установлены последние версии скрипта ({SCRIPT_VERSION}) и .docm файла ({DOCM_VERSION}).")
-
         
-
         return False
-
     except Exception as e:
-
         print(f"Ошибка при проверке обновлений: {e}")
-
         print("Продолжаем работу с текущими версиями файлов.")
-
+        input("Нажмите Enter для продолжения...")  # Добавлено ожидание ввода
         return False
-
-
 
 # Вызываем функцию проверки обновлений
-
 if check_for_updates():
-
-    input("Нажмите Enter для завершения программы...")
-
     sys.exit()
 
 
