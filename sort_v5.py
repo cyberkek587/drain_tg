@@ -58,7 +58,7 @@ import requests
 
 # Добавляем версию скрипта
 
-SCRIPT_VERSION = "5.0.1"
+SCRIPT_VERSION = "5.0.2"
 
 DOCM_VERSION = "1.0.1"  # Добавляем версию для .docm файла
 
