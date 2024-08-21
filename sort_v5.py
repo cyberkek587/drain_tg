@@ -1,12 +1,14 @@
 import subprocess
 import sys
+import os
 
 def install_dependencies():
     dependencies = [
         'pillow',
         'pywin32',
         'pyperclip',
-        'tqdm'
+        'tqdm',
+        'requests'
     ]
     
     print("Установка зависимостей...")
@@ -21,9 +23,43 @@ def install_dependencies():
 # Устанавливаем зависимости перед импортом
 install_dependencies()
 
-# Теперь импортируем остальные модули
+# Теперь импортируем requests и другие модули
+import requests
+
+GITHUB_REPO = "cyberkek587/drain_tg"
+SCRIPT_NAME = "sort_v5.py"
+
+def check_for_updates():
+    """Проверяет наличие обновлений скрипта на GitHub."""
+    try:
+        # Получаем последнюю версию скрипта с GitHub
+        url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{SCRIPT_NAME}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            remote_code = response.text
+            
+            # Сравниваем с локальной версией
+            with open(__file__, 'r', encoding='utf-8') as file:
+                local_code = file.read()
+            
+            if remote_code != local_code:
+                print("Доступно обновление. Обновляем скрипт...")
+                with open(__file__, 'w', encoding='utf-8') as file:
+                    file.write(remote_code)
+                print("Скрипт обновлен. Перезапустите программу.")
+                input("Нажмите Enter для продолжения...")
+                sys.exit()
+            else:
+                print("У вас установлена последняя версия скрипта.")
+    except Exception as e:
+        print(f"Ошибка при проверке обновлений: {e}")
+
+# Вызываем функцию проверки обновлений после установки зависимостей
+check_for_updates()
+
+# Теперь импортируем requests и другие модули
+import requests
 import json
-import os
 import shutil
 import re
 from datetime import datetime
