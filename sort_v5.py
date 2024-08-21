@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import os
+import re
 
 def install_dependencies():
     dependencies = [
@@ -26,6 +27,9 @@ install_dependencies()
 # Теперь импортируем requests и другие модули
 import requests
 
+# Добавляем версию скрипта
+SCRIPT_VERSION = "5.0.0"
+
 GITHUB_REPO = "cyberkek587/drain_tg"
 SCRIPT_NAME = "sort_v5.py"
 
@@ -38,19 +42,23 @@ def check_for_updates():
         if response.status_code == 200:
             remote_code = response.text
             
-            # Сравниваем с локальной версией
-            with open(__file__, 'r', encoding='utf-8') as file:
-                local_code = file.read()
-            
-            if remote_code != local_code:
-                print("Доступно обновление. Обновляем скрипт...")
-                with open(__file__, 'w', encoding='utf-8') as file:
-                    file.write(remote_code)
-                print("Скрипт обновлен. Перезапустите программу.")
-                input("Нажмите Enter для продолжения...")
-                sys.exit()
+            # Извлекаем версию из удаленного кода
+            remote_version = re.search(r'SCRIPT_VERSION\s*=\s*"([\d.]+)"', remote_code)
+            if remote_version:
+                remote_version = remote_version.group(1)
+                
+                if remote_version > SCRIPT_VERSION:
+                    print(f"Доступно обновление. Текущая версия: {SCRIPT_VERSION}, новая версия: {remote_version}")
+                    print("Обновляем скрипт...")
+                    with open(__file__, 'w', encoding='utf-8') as file:
+                        file.write(remote_code)
+                    print("Скрипт обновлен. Перезапустите программу.")
+                    input("Нажмите Enter для продолжения...")
+                    sys.exit()
+                else:
+                    print(f"У вас установлена последняя версия скрипта ({SCRIPT_VERSION}).")
             else:
-                print("У вас установлена последняя версия скрипта.")
+                print("Не удалось определить версию удаленного скрипта.")
     except Exception as e:
         print(f"Ошибка при проверке обновлений: {e}")
 
