@@ -1,7 +1,11 @@
-import subprocess
 import sys
+import subprocess
 import os
 import re
+import json
+from datetime import datetime
+import glob
+import shutil
 
 def install_dependencies():
     dependencies = [
@@ -21,14 +25,26 @@ def install_dependencies():
             print(f"Не удалось установить пакет: {package}")
     print("Установка зависимостей завершена.")
 
-# Устанавливаем зависимости перед импортом
-install_dependencies()
-
-# Теперь импортируем requests и другие модули
-import requests
+try:
+    # Попытка импорта необходимых модулей
+    import requests
+    from PIL import Image
+    import win32com.client
+    import pyperclip
+    import tqdm
+except ImportError as e:
+    print(f"Ошибка импорта: {e}")
+    print("Попытка установки недостающих зависимостей...")
+    install_dependencies()
+    # Повторная попытка импорта после установки
+    import requests
+    from PIL import Image
+    import win32com.client
+    import pyperclip
+    import tqdm
 
 # Добавляем версию скрипта
-SCRIPT_VERSION = "5.0.5"
+SCRIPT_VERSION = "5.0.6"
 DOCM_VERSION = "1.0.6"  # Добавляем версию для .docm файла
 
 GITHUB_REPO = "cyberkek587/drain_tg"
@@ -95,18 +111,6 @@ def check_for_updates():
 # Вызываем функцию проверки обновлений
 if check_for_updates():
     sys.exit()
-
-# Теперь импортируем requests и другие модули
-import requests
-import json
-import shutil
-import re
-from datetime import datetime
-import win32com.client
-from PIL import Image
-import pyperclip
-import glob
-import tqdm
 
 # Словарь для хранения тем
 THEMES = {
