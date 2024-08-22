@@ -87,17 +87,25 @@ def check_for_updates():
             if choice == 'да':
                 print("Обновляем файлы...")
                 try:
+                    # Создаем резервную копию текущего скрипта
+                    backup_name = f"{SCRIPT_NAME}.bak"
+                    shutil.copy(__file__, backup_name)
+                    print(f"Создана резервная копия скрипта: {backup_name}")
+
                     with open(__file__, 'w', encoding='utf-8') as file:
                         file.write(remote_script)
                     with open(DOCM_NAME, 'wb') as file:
                         file.write(remote_docm)
                     print("Файлы обновлены. Перезапустите программу.")
-                    input("Нажмите Enter для завершения...")  # Добавлено ожидание ввода
+                    input("Нажмите Enter для завершения...")
                     return True
                 except Exception as e:
                     print(f"Ошибка при обновлении файлов: {e}")
+                    print("Восстанавливаем предыдущую версию скрипта...")
+                    shutil.copy(backup_name, __file__)
+                    print("Предыдущая версия скрипта восстановлена.")
                     print("Продолжаем работу с текущими версиями.")
-                    input("Нажмите Enter для продолжения...")  # Добавлено ожидание ввода
+                    input("Нажмите Enter для продолжения...")
         else:
             print(f"У вас установлены последние версии скрипта ({SCRIPT_VERSION}) и .docm файла ({DOCM_VERSION}).")
         
@@ -105,7 +113,7 @@ def check_for_updates():
     except Exception as e:
         print(f"Ошибка при проверке обновлений: {e}")
         print("Продолжаем работу с текущими версиями файлов.")
-        input("Нажмите Enter для продолжения...")  # Добавлено ожидание ввода
+        input("Нажмите Enter для продолжения...")
         return False
 
 # Вызываем функцию проверки обновлений
