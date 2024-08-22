@@ -120,6 +120,17 @@ def check_for_updates():
 if check_for_updates():
     sys.exit()
 
+# Проверяем наличие файла word_jpg_auto_v5.docm и скачиваем его, если отсутствует
+if not os.path.exists(DOCM_NAME):
+    try:
+        docm_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{DOCM_NAME}"
+        docm_response = requests.get(docm_url, timeout=10)
+        if docm_response.status_code == 200:
+            with open(DOCM_NAME, 'wb') as file:
+                file.write(docm_response.content)
+    except Exception as e:
+        print(f"Ошибка при скачивании файла {DOCM_NAME}: {e}")
+
 # Словарь для хранения тем
 THEMES = {
     2: "Ручная чистка",
