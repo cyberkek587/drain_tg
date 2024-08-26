@@ -44,7 +44,7 @@ except ImportError as e:
     import tqdm
 
 # Добавляем версию скрипта
-SCRIPT_VERSION = "5.0.6"
+SCRIPT_VERSION = "5.0.7"
 DOCM_VERSION = "1.0.6"  # Добавляем версию для .docm файла
 
 GITHUB_REPO = "cyberkek587/drain_tg"
@@ -134,7 +134,7 @@ if not os.path.exists(DOCM_NAME):
 # Словарь для хранения тем
 THEMES = {
     2: "Ручная чистка",
-    4: "Каналопромывка",
+    4: "Перехваты Авраменко Святогеоргиевска",
     6: "Ежедневные отчеты",
     9: "АВАРИИ",
     12: "Отчет о выполнении работ по объектам",
