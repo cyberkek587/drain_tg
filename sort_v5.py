@@ -145,7 +145,8 @@ THEMES = {
 
 def update_themes(filename):
     """
-    Обновляет словарь THEMES новыми темами из файла JSON.
+    Обновляет словарь THEMES новыми темами из файла JSON,
+    сохраняя приоритет существующих названий для указанных ID.
 
     Args:
         filename: Имя файла JSON.
@@ -154,11 +155,28 @@ def update_themes(filename):
     with open(filename, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
+    existing_themes = THEMES.copy()
+    new_themes = {}
+    updated_themes = []
+
     for message in data['messages']:
         if message['type'] == 'service' and message['action'] == 'topic_created':
-            THEMES[int(message['id'])] = message['title']
+            theme_id = int(message['id'])
+            if theme_id not in existing_themes:
+                new_themes[theme_id] = message['title']
+                updated_themes.append((theme_id, message['title']))
+
+    # Обновляем THEMES, сохраняя приоритет существующих названий
+    THEMES.update(new_themes)
 
     print(f"Обновлен словарь тем. Всего тем: {len(THEMES)}")
+    if updated_themes:
+        print("Новые темы:")
+        for id, theme in updated_themes:
+            print(f"{id}: {theme}")
+    else:
+        print("Новых тем не обнаружено.")
+    
     print("Текущий список тем:")
     for id, theme in THEMES.items():
         print(f"{id}: {theme}")
