@@ -44,7 +44,7 @@ except ImportError as e:
     import tqdm
 
 # Добавляем версию скрипта
-SCRIPT_VERSION = "5.0.7"
+SCRIPT_VERSION = "5.0.8"
 DOCM_VERSION = "1.0.6"  # Добавляем версию для .docm файла
 
 GITHUB_REPO = "cyberkek587/drain_tg"
@@ -244,13 +244,13 @@ def process_json(json_file):
             subfolder_path = os.path.join(theme_path, subfolder_name)
             
             # Проверяем, есть ли фотографии для перемещения
-            photos_to_move = [msg for msg in grouped_messages if 'photo' in msg and msg['photo'] not in processed_photos]
+            photos_to_move = [msg for msg in grouped_messages if 'photo' in msg]
             if photos_to_move:
                 if subfolder_path not in theme_folders[theme_path]:
                     theme_folders[theme_path][subfolder_path] = []
                 theme_folders[theme_path][subfolder_path].extend(photos_to_move)
 
-    # Создаем папки и перемещаем фотографии
+    # Создаем папки и копируем фотографии
     for theme_path, subfolders in theme_folders.items():
         if subfolders:
             os.makedirs(theme_path, exist_ok=True)
@@ -261,19 +261,23 @@ def process_json(json_file):
                 print(f"Создана подпапка: {subfolder_path}")
                 
                 for msg in photos:
-                    if msg['photo'] not in processed_photos:  # Проверяем, не была ли фотография уже обработана
-                        source_file = os.path.join(photos_path, os.path.basename(msg['photo']))
-                        target_file = os.path.join(subfolder_path, os.path.basename(msg['photo']))
+                    source_file = os.path.join(photos_path, os.path.basename(msg['photo']))
+                    target_file = os.path.join(subfolder_path, os.path.basename(msg['photo']))
 
-                        if os.path.exists(source_file):
-                            shutil.move(source_file, target_file)
-                            processed_photos.add(msg['photo'])
-                            print(f"Перемещен файл: {source_file} в {target_file}")
-                        else:
-                            print(f"Файл не найден: {source_file}")
-    clear_terminal()
-    print("Обработка сообщений завершена")
-    print(f"Всего обработано уникальных фотографий: {len(processed_photos)}")
+                    if os.path.exists(source_file):
+                        shutil.copy2(source_file, target_file)
+                        print(f"Скопирован файл: {source_file} в {target_file}")
+                        processed_photos.add(source_file)
+                    else:
+                        print(f"Файл не найден: {source_file}")
+
+    # Удаляем обработанные фотографии из папки photos
+    for photo in processed_photos:
+        try:
+            os.remove(photo)
+            print(f"Удален файл: {photo}")
+        except OSError as e:
+            print(f"Ошибка при удалении файла {photo}: {e}")
 
     # Проверяем, существует ли папка photos, и удаляем ее, если она пуста
     if os.path.exists(photos_path):
@@ -284,6 +288,10 @@ def process_json(json_file):
             print("ВНИМАНИЕ: В папке photos остались нерассортированные фотографии.")
     else:
         print("Папка photos не существует.")
+
+    clear_terminal()
+    print("Обработка сообщений завершена")
+    print(f"Всего обработано уникальных фотографий: {len(processed_photos)}")
 
 def clear_terminal():
     os.system('cls' if os.name == 'nt' else 'clear')
