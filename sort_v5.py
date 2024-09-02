@@ -44,7 +44,7 @@ except ImportError as e:
     import tqdm
 
 # Добавляем версию скрипта
-SCRIPT_VERSION = "5.0.8"
+SCRIPT_VERSION = "5.1"
 DOCM_VERSION = "1.0.6"  # Добавляем версию для .docm файла
 
 GITHUB_REPO = "cyberkek587/drain_tg"
@@ -343,13 +343,13 @@ def sanitize_folder_name(name):
     # Ограничиваем длину имени папки до 255 символов
     return name[:255]
 
-def process_photos_and_create_docx(folder_path, folder_name):
-    """Обрабатывает фотографии и создает docx файл без переименования файлов."""
+def process_photos_and_create_docx(folder_path, folder_name, prefix=""):
+    """Обрабатывает фотографии и создает docx файл с добавлением префикса к имени файла."""
     word = win32com.client.Dispatch("Word.Application")
     status = ""
 
     # Используем имя папки в качестве текста
-    text_value = folder_name
+    text_value = f"{prefix}_{folder_name}" if prefix else folder_name
 
     # Копируем путь к папке и имя файла в буфер обмена, разделяя их символом |
     pyperclip.copy(f"{folder_path}|{text_value}")
@@ -389,10 +389,11 @@ def process_photos_and_create_docx(folder_path, folder_name):
     for file_name in os.listdir(folder_path):
         if file_name.endswith(".docx"):
             source_path = os.path.join(folder_path, file_name)
-            destination_path = os.path.join(docx_folder, file_name)
+            new_file_name = f"{prefix}_{file_name}" if prefix and not file_name.startswith(prefix) else file_name
+            destination_path = os.path.join(docx_folder, new_file_name)
             shutil.move(source_path, destination_path)
             pyperclip.copy(destination_path)
-            status += f"Сформирован {file_name} и перемещен в папку docx\n"
+            status += f"Сформирован {new_file_name} и перемещен в папку docx\n"
 
     return status
 
@@ -459,11 +460,13 @@ def merge_folders(sorted_folder_name):
                         input("Нажмите Enter для продолжения...")
                         continue
                     
+                    prefix = input("Введите префикс для имен файлов (нажмите Enter для пропуска): ").strip()
+                    
                     for folder_index in folder_indices:
                         selected_folder = subfolders[folder_index]
                         folder_path = os.path.join(theme_path, selected_folder)
                         
-                        status = process_photos_and_create_docx(folder_path, selected_folder)
+                        status = process_photos_and_create_docx(folder_path, selected_folder, prefix)
                         print(f"Обработка папки '{selected_folder}':")
                         print(status)
                         print("-" * 50)
