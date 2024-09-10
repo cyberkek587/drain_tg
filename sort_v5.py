@@ -50,7 +50,7 @@ except ImportError as e:
     import tqdm
 
 #  Добавляем версии
-SCRIPT_VERSION = "5.1.3"
+SCRIPT_VERSION = "5.1.4"
 DOCM_VERSION = "1.0.6"
 EXCEL_TEMPLATE_VERSION = "1.0.0"  # Добавляем версию для шаблона Excel
 
@@ -408,8 +408,10 @@ def update_excel(docx_files, prefix):
     # Добавляем новые данные
     for docx_file in docx_files:
         file_name = os.path.splitext(os.path.basename(docx_file))[0]
+        # Удаляем префикс из отображаемого текста
+        display_name = file_name[len(prefix)+1:] if prefix and file_name.startswith(prefix) else file_name
         relative_path = os.path.relpath(docx_file, start=os.path.dirname(excel_path))
-        ws.append(["", f'=HYPERLINK("{relative_path}", "{file_name}")', "", "", ""])
+        ws.append(["", f'=HYPERLINK("{relative_path}", "{display_name}")', "", "", ""])
 
     # Добавляем итоговую строку
     ws.append(["", "Всего", "", "", ""])
