@@ -87,8 +87,8 @@ def check_for_updates():
                 update_available = True
         
         if update_available:
-            choice = input("Хотите обновить файлы? (да/нет): ").lower()
-            if choice == 'да':
+            choice = input("Хотите обновить файлы? (д/н): ").lower()
+            if choice == 'д':
                 print("Обновляем файлы...")
                 try:
                     # Создаем резервную копию текущего скрипта
