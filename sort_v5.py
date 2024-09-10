@@ -50,9 +50,9 @@ except ImportError as e:
     import tqdm
 
 #  Добавляем версии
-SCRIPT_VERSION = "5.1.4"
+SCRIPT_VERSION = "5.1.5"
 DOCM_VERSION = "1.0.6"
-EXCEL_TEMPLATE_VERSION = "1.0.0"  # Добавляем версию для шаблона Excel
+EXCEL_TEMPLATE_VERSION = "1.0.1"  # Добавляем версию для шаблона Excel
 
 GITHUB_REPO = "cyberkek587/drain_tg"
 SCRIPT_NAME = "sort_v5.py"
@@ -222,7 +222,7 @@ def get_date_range(messages):
 
 def process_json(json_file):
     """Обрабатывает JSON файл и сортирует сообщения по темам."""
-    global sorted_folder_name  # Объявляем переменную как глобальную
+    global sorted_folder_name, date_range  # Объявляем переменные как глобальные
     
     with open(json_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -234,7 +234,8 @@ def process_json(json_file):
     
     # Получаем диапазон дат и создаем новое имя для папки sorted
     start_date, end_date = get_date_range(messages)
-    sorted_folder_name = f"sorted_{start_date}_to_{end_date}"
+    date_range = f"{start_date}_to_{end_date}"
+    sorted_folder_name = f"sorted_{date_range}"
     sorted_path = os.path.join(os.path.dirname(__file__), sorted_folder_name)
     print(f"Путь к папке с отсортированными файлами: {sorted_path}")
 
@@ -379,7 +380,9 @@ def update_excel(docx_files, prefix):
         print("Шаблон Excel не найден. Пожалуйста, запустите проверку обновлений.")
         return
 
-    excel_path = os.path.join(os.path.dirname(__file__), 'docx', 'Содержание.xlsm')
+    docx_folder = os.path.join(os.path.dirname(__file__), f'docx_{date_range}')
+    os.makedirs(docx_folder, exist_ok=True)
+    excel_path = os.path.join(docx_folder, 'Содержание.xlsm')
     
     if not os.path.exists(excel_path):
         shutil.copy(template_path, excel_path)
@@ -532,7 +535,7 @@ def process_photos_and_create_docx(folder_path, folder_name, prefix=""):
     word.ActiveDocument.Close()
     word.Quit()
 
-    docx_folder = os.path.join(script_dir, 'docx')
+    docx_folder = os.path.join(script_dir, f'docx_{date_range}')
     os.makedirs(docx_folder, exist_ok=True)
 
     docx_files = []
