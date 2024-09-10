@@ -6,6 +6,9 @@ import json
 from datetime import datetime
 import glob
 import shutil
+import openpyxl
+from openpyxl.styles import Font, Border, Side, Alignment
+from openpyxl.utils import get_column_letter
 
 def install_dependencies():
     dependencies = [
@@ -13,7 +16,8 @@ def install_dependencies():
         'pywin32',
         'pyperclip',
         'tqdm',
-        'requests'
+        'requests',
+        'openpyxl'
     ]
     
     print("Установка зависимостей...")
@@ -44,7 +48,7 @@ except ImportError as e:
     import tqdm
 
 # Добавляем версию скрипта
-SCRIPT_VERSION = "5.1"
+SCRIPT_VERSION = "5.1.1"
 DOCM_VERSION = "1.0.6"  # Добавляем версию для .docm файла
 
 GITHUB_REPO = "cyberkek587/drain_tg"
@@ -343,6 +347,90 @@ def sanitize_folder_name(name):
     # Ограничиваем длину имени папки до 255 символов
     return name[:255]
 
+def update_excel(docx_files, prefix):
+    excel_path = os.path.join(os.path.dirname(__file__), 'docx', 'Содержание.xlsx')
+    
+    if os.path.exists(excel_path):
+        wb = openpyxl.load_workbook(excel_path)
+    else:
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)  # Удаляем стандартный лист
+
+    sheet_name = prefix if prefix else "Без префикса"
+    if sheet_name not in wb.sheetnames:
+        ws = wb.create_sheet(sheet_name)
+        ws.append(["№", "Название объекта", "Количество", "Примечание"])
+        for col in range(1, 5):
+            ws.cell(row=1, column=col).font = Font(bold=True)
+    else:
+        ws = wb[sheet_name]
+
+    # Определяем стили для границ
+    thin_border = Border(left=Side(style='thin'), 
+                         right=Side(style='thin'), 
+                         top=Side(style='thin'), 
+                         bottom=Side(style='thin'))
+
+    # Удаляем существующую итоговую строку, если она есть
+    if ws.cell(row=ws.max_row, column=2).value == "Всего":
+        ws.delete_rows(ws.max_row)
+
+    # Добавляем новые данные
+    for docx_file in docx_files:
+        file_name = os.path.splitext(os.path.basename(docx_file))[0]
+        relative_path = os.path.relpath(docx_file, start=os.path.dirname(excel_path))
+        ws.append(["", f'=HYPERLINK("{relative_path}", "{file_name}")', "", ""])
+
+    # Добавляем итоговую строку
+    ws.append(["", "Всего", "", ""])
+    ws.cell(row=ws.max_row, column=2).font = Font(bold=True)
+
+    # Нумеруем непустые строки и определяем диапазон суммирования
+    row_number = 1
+    first_data_row = None
+    last_data_row = None
+    for row in range(2, ws.max_row):  # Начинаем со второй строки, пропуская заголовок
+        if ws.cell(row=row, column=2).value and ws.cell(row=row, column=2).value != "Всего":
+            ws.cell(row=row, column=1).value = row_number
+            row_number += 1
+            if first_data_row is None:
+                first_data_row = row
+            last_data_row = row
+
+    # Обновляем формулу в итоговой строке
+    if first_data_row and last_data_row:
+        ws.cell(row=ws.max_row, column=3).value = f"=SUM(C{first_data_row}:C{last_data_row})"
+
+    # Применяем границы и выравнивание ко всем ячейкам
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=4):
+        for cell in row:
+            cell.border = thin_border
+            if cell.column == 1:
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            elif cell.column == 2:
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+            else:
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    # Применяем автоподбор ширины столбцов
+    for column_cells in ws.columns:
+        max_length = 0
+        column = column_cells[0].column
+        for cell in column_cells:
+            if cell.row == 1 or cell.row == ws.max_row:  # Заголовок или итоговая строка
+                max_length = max(max_length, len(str(cell.value)))
+            elif column == 2:  # Второй столбец (с гиперссылками)
+                if cell.value and cell.value.startswith('=HYPERLINK'):
+                    # Извлекаем текст гиперссылки
+                    display_text = cell.value.split('"')[3]
+                    max_length = max(max_length, len(display_text))
+            else:
+                max_length = max(max_length, len(str(cell.value)))
+        adjusted_width = max_length + 4
+        ws.column_dimensions[get_column_letter(column)].width = adjusted_width
+
+    wb.save(excel_path)
+
 def process_photos_and_create_docx(folder_path, folder_name, prefix=""):
     """Обрабатывает фотографии и создает docx файл с добавлением префикса к имени файла."""
     word = win32com.client.Dispatch("Word.Application")
@@ -386,6 +474,7 @@ def process_photos_and_create_docx(folder_path, folder_name, prefix=""):
     docx_folder = os.path.join(script_dir, 'docx')
     os.makedirs(docx_folder, exist_ok=True)
 
+    docx_files = []
     for file_name in os.listdir(folder_path):
         if file_name.endswith(".docx"):
             source_path = os.path.join(folder_path, file_name)
@@ -394,6 +483,9 @@ def process_photos_and_create_docx(folder_path, folder_name, prefix=""):
             shutil.move(source_path, destination_path)
             pyperclip.copy(destination_path)
             status += f"Сформирован {new_file_name} и перемещен в папку docx\n"
+            docx_files.append(destination_path)
+
+    update_excel(docx_files, prefix)
 
     return status
 
