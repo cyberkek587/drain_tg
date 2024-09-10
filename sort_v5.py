@@ -7,8 +7,10 @@ from datetime import datetime
 import glob
 import shutil
 import openpyxl
-from openpyxl.styles import Font, Border, Side, Alignment
+from openpyxl.styles import Font, Border, Side, Alignment, PatternFill
+from openpyxl.drawing.image import Image as ExcelImage
 from openpyxl.utils import get_column_letter
+import win32com.client
 
 def install_dependencies():
     dependencies = [
@@ -47,16 +49,18 @@ except ImportError as e:
     import pyperclip
     import tqdm
 
-# Добавляем версию скрипта
-SCRIPT_VERSION = "5.1.1"
-DOCM_VERSION = "1.0.6"  # Добавляем версию для .docm файла
+#  Добавляем версии
+SCRIPT_VERSION = "5.1.3"
+DOCM_VERSION = "1.0.6"
+EXCEL_TEMPLATE_VERSION = "1.0.0"  # Добавляем версию для шаблона Excel
 
 GITHUB_REPO = "cyberkek587/drain_tg"
 SCRIPT_NAME = "sort_v5.py"
 DOCM_NAME = "word_jpg_auto_v5.docm"
+EXCEL_TEMPLATE_NAME = "excel_summary_template.xlsm"
 
 def check_for_updates():
-    """Проверяет наличие обновлений скрипта и .docm файла на GitHub."""
+    """Проверяет наличие обновлений скрипта, .docm файла и шаблона Excel на GitHub."""
     try:
         requests.get("https://github.com", timeout=5)
     except requests.ConnectionError:
@@ -66,9 +70,11 @@ def check_for_updates():
     try:
         script_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{SCRIPT_NAME}"
         docm_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{DOCM_NAME}"
+        excel_template_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{EXCEL_TEMPLATE_NAME}"
         
         script_response = requests.get(script_url, timeout=10)
         docm_response = requests.get(docm_url, timeout=10)
+        excel_template_response = requests.get(excel_template_url, timeout=10)
         
         update_available = False
         
@@ -86,6 +92,13 @@ def check_for_updates():
                 print(f"Доступно обновление .docm файла. Текущая версия: {DOCM_VERSION}, новая версия: {remote_docm_version.group(1)}")
                 update_available = True
         
+        if excel_template_response.status_code == 200:
+            remote_excel_template = excel_template_response.content
+            remote_excel_template_version = re.search(r'EXCEL_TEMPLATE_VERSION\s*=\s*"([\d.]+)"', remote_script)
+            if remote_excel_template_version and remote_excel_template_version.group(1) > EXCEL_TEMPLATE_VERSION:
+                print(f"Доступно обновление шаблона Excel. Текущая версия: {EXCEL_TEMPLATE_VERSION}, новая версия: {remote_excel_template_version.group(1)}")
+                update_available = True
+        
         if update_available:
             choice = input("Хотите обновить файлы? (д/н): ").lower()
             if choice == 'д':
@@ -100,6 +113,13 @@ def check_for_updates():
                         file.write(remote_script)
                     with open(DOCM_NAME, 'wb') as file:
                         file.write(remote_docm)
+                    
+                    # Скачиваем шаблон Excel
+                    excel_template_path = os.path.join(os.path.dirname(__file__), EXCEL_TEMPLATE_NAME)
+                    with open(excel_template_path, 'wb') as file:
+                        file.write(excel_template_response.content)
+                    print("Шаблон Excel обновлен.")
+                    
                     print("Файлы обновлены. Перезапустите программу.")
                     input("Нажмите Enter для завершения...")
                     return True
@@ -111,7 +131,7 @@ def check_for_updates():
                     print("Продолжаем работу с текущими версиями.")
                     input("Нажмите Enter для продолжения...")
         else:
-            print(f"У вас установлены последние версии скрипта ({SCRIPT_VERSION}) и .docm файла ({DOCM_VERSION}).")
+            print(f"У вас установлены последние версии скрипта ({SCRIPT_VERSION}), .docm файла ({DOCM_VERSION}) и шаблона Excel ({EXCEL_TEMPLATE_VERSION}).")
         
         return False
     except Exception as e:
@@ -124,16 +144,22 @@ def check_for_updates():
 if check_for_updates():
     sys.exit()
 
-# Проверяем наличие файла word_jpg_auto_v5.docm и скачиваем его, если отсутствует
-if not os.path.exists(DOCM_NAME):
-    try:
-        docm_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{DOCM_NAME}"
-        docm_response = requests.get(docm_url, timeout=10)
-        if docm_response.status_code == 200:
-            with open(DOCM_NAME, 'wb') as file:
-                file.write(docm_response.content)
-    except Exception as e:
-        print(f"Ошибка при скачивании файла {DOCM_NAME}: {e}")
+# Проверяем наличие файлов и скачиваем их, если отсутствуют
+def check_and_download_file(file_name, url):
+    if not os.path.exists(file_name):
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                with open(file_name, 'wb') as file:
+                    file.write(response.content)
+                print(f"Файл {file_name} успешно скачан.")
+            else:
+                print(f"Не удалось скачать файл {file_name}. Код ответа: {response.status_code}")
+        except Exception as e:
+            print(f"Ошибка при скачивании файла {file_name}: {e}")
+
+check_and_download_file(DOCM_NAME, f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{DOCM_NAME}")
+check_and_download_file(EXCEL_TEMPLATE_NAME, f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{EXCEL_TEMPLATE_NAME}")
 
 # Словарь для хранения тем
 THEMES = {
@@ -348,19 +374,23 @@ def sanitize_folder_name(name):
     return name[:255]
 
 def update_excel(docx_files, prefix):
-    excel_path = os.path.join(os.path.dirname(__file__), 'docx', 'Содержание.xlsx')
+    template_path = os.path.join(os.path.dirname(__file__), EXCEL_TEMPLATE_NAME)
+    if not os.path.exists(template_path):
+        print("Шаблон Excel не найден. Пожалуйста, запустите проверку обновлений.")
+        return
+
+    excel_path = os.path.join(os.path.dirname(__file__), 'docx', 'Содержание.xlsm')
     
-    if os.path.exists(excel_path):
-        wb = openpyxl.load_workbook(excel_path)
-    else:
-        wb = openpyxl.Workbook()
-        wb.remove(wb.active)  # Удаляем стандартный лист
+    if not os.path.exists(excel_path):
+        shutil.copy(template_path, excel_path)
+        print(f"Создан новый файл {excel_path} на основе шаблона.")
+    wb = openpyxl.load_workbook(excel_path, keep_vba=True)
 
     sheet_name = prefix if prefix else "Без префикса"
     if sheet_name not in wb.sheetnames:
         ws = wb.create_sheet(sheet_name)
-        ws.append(["№", "Название объекта", "Количество", "Примечание"])
-        for col in range(1, 5):
+        ws.append(["№", "Название объекта", "Количество", "Примечание", "Печать"])
+        for col in range(1, 6):
             ws.cell(row=1, column=col).font = Font(bold=True)
     else:
         ws = wb[sheet_name]
@@ -379,17 +409,17 @@ def update_excel(docx_files, prefix):
     for docx_file in docx_files:
         file_name = os.path.splitext(os.path.basename(docx_file))[0]
         relative_path = os.path.relpath(docx_file, start=os.path.dirname(excel_path))
-        ws.append(["", f'=HYPERLINK("{relative_path}", "{file_name}")', "", ""])
+        ws.append(["", f'=HYPERLINK("{relative_path}", "{file_name}")', "", "", ""])
 
     # Добавляем итоговую строку
-    ws.append(["", "Всего", "", ""])
+    ws.append(["", "Всего", "", "", ""])
     ws.cell(row=ws.max_row, column=2).font = Font(bold=True)
 
     # Нумеруем непустые строки и определяем диапазон суммирования
     row_number = 1
     first_data_row = None
     last_data_row = None
-    for row in range(2, ws.max_row):  # Начинаем со второй строки, пропуская заголовок
+    for row in range(2, ws.max_row):
         if ws.cell(row=row, column=2).value and ws.cell(row=row, column=2).value != "Всего":
             ws.cell(row=row, column=1).value = row_number
             row_number += 1
@@ -402,7 +432,7 @@ def update_excel(docx_files, prefix):
         ws.cell(row=ws.max_row, column=3).value = f"=SUM(C{first_data_row}:C{last_data_row})"
 
     # Применяем границы и выравнивание ко всем ячейкам
-    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=4):
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=5):
         for cell in row:
             cell.border = thin_border
             if cell.column == 1:
@@ -429,7 +459,36 @@ def update_excel(docx_files, prefix):
         adjusted_width = max_length + 4
         ws.column_dimensions[get_column_letter(column)].width = adjusted_width
 
+    # Добавляем "кнопку" для печати
+    button_cell = ws.cell(row=1, column=6)
+    button_cell.value = "ПЕЧАТЬ"
+    button_cell.font = Font(bold=True, color="FFFFFF")
+    button_cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    button_cell.alignment = Alignment(horizontal='center', vertical='center')
+    button_cell.border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    # Устанавливаем ширину столбца для кнопки
+    ws.column_dimensions['F'].width = 15
+
     wb.save(excel_path)
+    print(f"Файл Excel обновлен: {excel_path}")
+
+    # Добавляем макрос к кнопке с помощью win32com
+    xl = win32com.client.Dispatch("Excel.Application")
+    xl.Visible = False
+    wb = xl.Workbooks.Open(excel_path)
+    ws = wb.Worksheets(sheet_name)
+    
+    # Добавляем кнопку и привязываем к ней макрос
+    button = ws.Buttons().Add(ws.Range("F1").Left, ws.Range("F1").Top, ws.Range("F1").Width, ws.Range("F1").Height)
+    button.OnAction = "ПечатьДокументов"
+    button.Caption = "ПЕЧАТЬ"
+    button.Name = "ПечатьДокументов"
+
+    wb.Save()
+    xl.Quit()
+
+    print("Кнопка для запуска макроса печати добавлена.")
 
 def process_photos_and_create_docx(folder_path, folder_name, prefix=""):
     """Обрабатывает фотографии и создает docx файл с добавлением префикса к имени файла."""
