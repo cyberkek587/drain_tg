@@ -8,18 +8,28 @@ import glob
 import shutil
 import openpyxl
 from openpyxl.styles import Font, Border, Side, Alignment, PatternFill
-from openpyxl.drawing.image import Image as ExcelImage
 from openpyxl.utils import get_column_letter
 import win32com.client
+import tkinter as tk
+from tkinter import ttk, messagebox, simpledialog, scrolledtext
+import threading
+import pythoncom
+import queue
+import uuid
+import ctypes
+import requests
+# Скрываем консольное окно
+if sys.platform.startswith('win'):
+    ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
 def install_dependencies():
     dependencies = [
         'pillow',
         'pywin32',
         'pyperclip',
-        'tqdm',
         'requests',
-        'openpyxl'
+        'openpyxl',
+        'python-docx'
     ]
     
     print("Установка зависимостей...")
@@ -37,7 +47,6 @@ try:
     from PIL import Image
     import win32com.client
     import pyperclip
-    import tqdm
 except ImportError as e:
     print(f"Ошибка импорта: {e}")
     print("Попытка установки недостающих зависимостей...")
@@ -47,10 +56,9 @@ except ImportError as e:
     from PIL import Image
     import win32com.client
     import pyperclip
-    import tqdm
 
 #  Добавляем версии
-SCRIPT_VERSION = "5.1.5"
+SCRIPT_VERSION = "6.0.0"
 DOCM_VERSION = "1.0.6"
 EXCEL_TEMPLATE_VERSION = "1.0.1"  # Добавляем версию для шаблона Excel
 
@@ -199,17 +207,20 @@ def update_themes(filename):
     # Обновляем THEMES, сохраняя приоритет существующих названий
     THEMES.update(new_themes)
 
-    print(f"Обновлен словарь тем. Всего тем: {len(THEMES)}")
+    #print(f"Обновлен словарь тем. Всего тем: {len(THEMES)}")
     if updated_themes:
-        print("Новые темы:")
+        #print("Новые темы:")
         for id, theme in updated_themes:
-            print(f"{id}: {theme}")
+            #print(f"{id}: {theme}")
+            pass
     else:
-        print("Новых тем не обнаружено.")
+        #print("Новых тем не обнаружено.")
+        pass
     
     print("Текущий список тем:")
     for id, theme in THEMES.items():
         print(f"{id}: {theme}")
+    print("Обновление тем завершено")
 
 def get_date_range(messages):
     """Находит самую раннюю и самую позднюю даты сообщений."""
@@ -228,7 +239,7 @@ def process_json(json_file):
         data = json.load(f)
 
     messages = data['messages']
-    print("Начали обработку сообщений")
+    #print("Начали обработку сообщений")
 
     photos_path = os.path.join(os.path.dirname(__file__), 'photos')
     
@@ -237,7 +248,7 @@ def process_json(json_file):
     date_range = f"{start_date}_to_{end_date}"
     sorted_folder_name = f"sorted_{date_range}"
     sorted_path = os.path.join(os.path.dirname(__file__), sorted_folder_name)
-    print(f"Путь к папке с отсортированными файлами: {sorted_path}")
+    #print(f"Путь к папке с отсортированными файлами: {sorted_path}")
 
     theme_folders = {}
     processed_photos = set()  # Множество для отслеживания обработанных фотографий
@@ -255,7 +266,7 @@ def process_json(json_file):
         if 'text' in message and len(message['text']) > 235:
             continue
 
-        print(f"Обрабатываем сообщение с id: {message['id']}")
+        #print(f"Обрабатываем сообщение с id: {message['id']}")
         reply_to_id = int(message['reply_to_message_id'])
         if reply_to_id in THEMES:
             theme = THEMES[reply_to_id]
@@ -278,7 +289,7 @@ def process_json(json_file):
                         and msg['reply_to_message_id'] == message['reply_to_message_id']
                 ):
                     grouped_messages.append(msg)
-                    print(f"Добавлено сообщение в группу: {msg['id']}")
+                    #print(f"Добавлено сообщение в группу: {msg['id']}")
 
             # Проверяем, есть ли в группе сообщения с текстом
             subfolder_name = "Без_текста"
@@ -303,11 +314,11 @@ def process_json(json_file):
     for theme_path, subfolders in theme_folders.items():
         if subfolders:
             os.makedirs(theme_path, exist_ok=True)
-            print(f"Создана папка темы: {theme_path}")
+            #print(f"Создана папка темы: {theme_path}")
             
             for subfolder_path, photos in subfolders.items():
                 os.makedirs(subfolder_path, exist_ok=True)
-                print(f"Создана подпапка: {subfolder_path}")
+                #print(f"Создана подпапка: {subfolder_path}")
                 
                 for msg in photos:
                     source_file = os.path.join(photos_path, os.path.basename(msg['photo']))
@@ -315,32 +326,37 @@ def process_json(json_file):
 
                     if os.path.exists(source_file):
                         shutil.copy2(source_file, target_file)
-                        print(f"Скопирован файл: {source_file} в {target_file}")
+                        #print(f"Скопирован файл: {source_file} в {target_file}")
                         processed_photos.add(source_file)
                     else:
-                        print(f"Файл не найден: {source_file}")
+                        #print(f"Файл не найден: {source_file}")
+                        pass
 
     # Удаляем обработанные фотографии из папки photos
     for photo in processed_photos:
         try:
             os.remove(photo)
-            print(f"Удален файл: {photo}")
+            #print(f"Удален файл: {photo}")
         except OSError as e:
-            print(f"Ошибка при удалении файла {photo}: {e}")
+            #print(f"Ошибка при удалении файла {photo}: {e}")
+            pass
 
     # Проверяем, существует ли папка photos, и удаляем ее, если она пуста
     if os.path.exists(photos_path):
         if not os.listdir(photos_path):
             os.rmdir(photos_path)
-            print("Папка photos удалена, так как она пуста.")
+            #print("Папка photos удалена, так как она пуста.")
         else:
-            print("ВНИМАНИЕ: В папке photos остались нерассортированные фотографии.")
+            #print("ВНИМАНИЕ: В папке photos остались нерассортированные фотографии.")
+            pass
     else:
-        print("Папка photos не существует.")
+        #print("Папка photos не существует.")
+        pass
 
     clear_terminal()
-    print("Обработка сообщений завершена")
-    print(f"Всего обработано уникальных фотографий: {len(processed_photos)}")
+    #print("Обработка сообщений завершена")
+    #print(f"Всего обработано уникальных фотографий: {len(processed_photos)}")
+    #print("Обработка JSON завершена")
 
 def clear_terminal():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -386,7 +402,9 @@ def update_excel(docx_files, prefix):
     
     if not os.path.exists(excel_path):
         shutil.copy(template_path, excel_path)
-        print(f"Создан новый файл {excel_path} на основе шаблона.")
+        #print(f"Создан новый файл {excel_path} на основе шаблона.")
+    
+    # Открываем существующий файл Excel
     wb = openpyxl.load_workbook(excel_path, keep_vba=True)
 
     sheet_name = prefix if prefix else "Без префикса"
@@ -475,8 +493,9 @@ def update_excel(docx_files, prefix):
     # Устанавливаем ширину столбца для кнопки
     ws.column_dimensions['F'].width = 15
 
+    # Сохраняем изменения в файле Excel
     wb.save(excel_path)
-    print(f"Файл Excel обновлен: {excel_path}")
+    #print(f"Файл Excel обновлен: {excel_path}")
 
     # Добавляем макрос к кнопке с помощью win32com
     xl = win32com.client.Dispatch("Excel.Application")
@@ -493,7 +512,7 @@ def update_excel(docx_files, prefix):
     wb.Save()
     xl.Quit()
 
-    print("Кнопка для запуска макроса печати добавлена.")
+    #print("Кнопка для запуска макроса печати добавлена.")
 
 def process_photos_and_create_docx(folder_path, folder_name, prefix=""):
     """Обрабатывает фотографии и создает docx файл с добавлением префикса к имени файла."""
@@ -511,7 +530,7 @@ def process_photos_and_create_docx(folder_path, folder_name, prefix=""):
     total_images = len(image_files)
 
     print("Обработка изображений:")
-    for file_path in tqdm.tqdm(image_files, total=total_images, unit="фото"):
+    for file_path in image_files:
         try:
             with Image.open(file_path) as img:
                 width, height = img.size
@@ -553,162 +572,436 @@ def process_photos_and_create_docx(folder_path, folder_name, prefix=""):
 
     return status
 
-def merge_folders(sorted_folder_name):
-    clear_terminal()
-    sorted_path = os.path.join(os.path.dirname(__file__), sorted_folder_name)
-    themes = [f for f in os.listdir(sorted_path) if os.path.isdir(os.path.join(sorted_path, f))]
+class Application(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Обработка фотографий и создание документов")
+        self.geometry("1000x600")
+
+        self.create_widgets()
+        
+        self.queue = queue.Queue()
+        self.task_queue = queue.Queue()
+        self.processing = False
+        self.total_tasks = 0
+        self.completed_tasks = 0
+        self.is_processing_docx = False
+        self.after(100, self.process_queue)
+        self.after(100, self.process_task_queue)
+        self.after(1000, self.update_summary_button_state)
+        self.folder_ids = {}  # Словарь для хранения уникальных идентификаторов папок
+
+    def create_widgets(self):
+        # Создаем фрейм для разделения дерева и консоли
+        self.main_frame = ttk.PanedWindow(self, orient=tk.VERTICAL)
+        self.main_frame.pack(expand=True, fill='both')
+
+        # Фрейм для дерева с полосой прокрутки
+        self.tree_frame = ttk.Frame(self.main_frame)
+        self.main_frame.add(self.tree_frame, weight=4)
+
+        # Создаем полосу прокрутки для дерева
+        self.tree_scrollbar = ttk.Scrollbar(self.tree_frame)
+        self.tree_scrollbar.pack(side='right', fill='y')
+
+        self.tree = ttk.Treeview(self.tree_frame, yscrollcommand=self.tree_scrollbar.set)
+        self.tree.pack(expand=True, fill='both')
+
+        # Привязываем полосу прокрутки к дереву
+        self.tree_scrollbar.config(command=self.tree.yview)
+
+        # Привязываем двойной щелчок к функции переименования
+        self.tree.bind("<Double-1>", self.on_double_click)
+
+        # Добавляем тег для зеленой заливки
+        self.tree.tag_configure('green', background='lightgreen')
+
+        # Добавляем тег для серой заливки
+        self.tree.tag_configure('gray', background='lightgray')
+
+        self.button_frame = ttk.Frame(self.tree_frame)
+        self.button_frame.pack(fill='x', padx=5, pady=5)
+
+        self.merge_button = ttk.Button(self.button_frame, text="Объединить выбранные", command=self.merge_selected)
+        self.merge_button.pack(side='left', padx=5)
+
+        self.find_replace_button = ttk.Button(self.button_frame, text="Найти и заменить", command=self.find_and_replace)
+        self.find_replace_button.pack(side='left', padx=5)
+
+        self.create_docx_button = ttk.Button(self.button_frame, text="Создать DOCX", command=self.create_docx)
+        self.create_docx_button.pack(side='left', padx=5)
+
+        self.open_summary_button = ttk.Button(self.button_frame, text="Открыть содержание", command=self.open_summary)
+        self.open_summary_button.pack(side='left', padx=5)
+        self.open_summary_button.config(state='disabled')  # Изначально кнопка неактивна
+
+        # Добавляем индикатор прогресса
+        self.progress = ttk.Progressbar(self.button_frame, orient="horizontal", length=200, mode="determinate")
+        self.progress.pack(side='left', padx=5)
+
+        # Добавляем метку для отображения прогресса
+        self.progress_label = ttk.Label(self.button_frame, text="0%")
+        self.progress_label.pack(side='left', padx=5)
+
+        # Создаем текстовое поле для вывода (консоль)
+        self.console_frame = ttk.Frame(self.main_frame)
+        self.main_frame.add(self.console_frame, weight=1)  # Уменьшаем вес консоли
+
+        self.console = scrolledtext.ScrolledText(self.console_frame, wrap=tk.WORD, height=10)
+        self.console.pack(expand=True, fill='both')
+
+        # Добавьте эту строку в метод create_widgets
+        self.status_label = ttk.Label(self, text="")
+        self.status_label.pack(side='bottom', fill='x')
     
-    while True:
-        print("Список доступных тем:")
-        for i, theme in enumerate(themes, 1):
-            print(f"{i}. {theme}")
-        print("0. Выход")
-        
-        theme_choice = input("Выберите номер темы или '0' для выхода: ").strip()
-        if theme_choice == '0':
-            return 'exit'
-        
-        try:
-            theme_index = int(theme_choice) - 1
-            selected_theme = themes[theme_index]
-        except (ValueError, IndexError):
-            print("Неверный выбор. Попробуйте снова.")
-            input("Нажмите Enter для продолжения...")
-            continue
-        
-        while True:
-            clear_terminal()
-            theme_path = os.path.join(sorted_path, selected_theme)
-            subfolders = sorted([f for f in os.listdir(theme_path) if os.path.isdir(os.path.join(theme_path, f))])
-            
-            print(f"Подпапки темы '{selected_theme}':")
-            for i, folder in enumerate(subfolders, 1):
-                print(f"{i}. {folder}")
-            print("0. Вернуться к выбору темы")
-            
-            choices = input("Введите номера подпапок для слияния/переименования (через запятую или диапазон, например 1,3-5,7),\n"
-                            "'д' для создания docx\n"
-                            "'0' для возврата: ").strip()
-            if choices == '0':
-                clear_terminal()
-                break
-            elif choices.lower() == 'д':
-                clear_terminal()
-                while True:
-                    if not subfolders:
-                        print("В этой теме нет подпапок.")
-                        input("Нажмите Enter для продолжения...")
-                        break
+    def find_and_replace(self):
+            selected_items = self.tree.selection()
+            if not selected_items:
+                messagebox.showwarning("Предупреждение", "Выберите папки для поиска и замены.")
+                return
+
+            # Создаем новое окно для ввода текста
+            dialog = tk.Toplevel(self)
+            dialog.title("Найти и заменить")
+            dialog.geometry("300x180")
+
+            ttk.Label(dialog, text="Найти:").pack(pady=5)
+            find_entry = ttk.Entry(dialog, width=40)
+            find_entry.pack(pady=5)
+
+            ttk.Label(dialog, text="Заменить на:").pack(pady=5)
+            replace_entry = ttk.Entry(dialog, width=40)
+            replace_entry.pack(pady=5)
+
+            def perform_replace():
+                find_text = find_entry.get()
+                replace_text = replace_entry.get()
+
+                if not find_text:
+                    messagebox.showwarning("Предупреждение", "Введите текст для поиска.")
+                    return
+
+                renamed_count = 0
+                for item in selected_items:
+                    old_name = self.tree.item(item)['text']
+                    new_name = old_name.replace(find_text, replace_text)
                     
-                    print("Выберите папки для создания docx:")
-                    for i, folder in enumerate(subfolders, 1):
-                        print(f"{i}. {folder}")
-                    print("0. Вернуться в предыдущее меню")
-                    folder_choices = input("Введите номера папок для создания docx (через запятую или диапазон, например 1,3-5,7) или '0' для возврата: ").strip().lower()
-                    
-                    if folder_choices == '0':
-                        clear_terminal()
-                        break
-                    
-                    folder_indices = parse_folder_selection(folder_choices, len(subfolders))
-                    if not folder_indices:
-                        print("Неверный выбор. Попробуйте снова.")
-                        input("Нажмите Enter для продолжения...")
-                        continue
-                    
-                    prefix = input("Введите префикс для имен файлов (нажмите Enter для пропуска): ").strip()
-                    
-                    for folder_index in folder_indices:
-                        selected_folder = subfolders[folder_index]
-                        folder_path = os.path.join(theme_path, selected_folder)
+                    if new_name != old_name:
+                        parent = self.tree.parent(item)
+                        if parent:  # Это подпапка
+                            theme_path = os.path.join(os.path.dirname(__file__), sorted_folder_name, self.tree.item(parent)['text'])
+                        else:  # Это тема
+                            theme_path = os.path.join(os.path.dirname(__file__), sorted_folder_name)
                         
-                        status = process_photos_and_create_docx(folder_path, selected_folder, prefix)
-                        print(f"Обработка папки '{selected_folder}':")
-                        print(status)
-                        print("-" * 50)
-                    
-                    clear_terminal()
-                continue
+                        old_path = os.path.join(theme_path, old_name)
+                        new_path = os.path.join(theme_path, new_name)
 
-            folder_indices = parse_folder_selection(choices, len(subfolders))
-            if not folder_indices:
-                print("Неверный выбор. Попробуйте снова.")
-                input("Нажмите Enter для продолжения...")
-                continue
-            
-            selected_folders = [subfolders[i] for i in folder_indices]
-            
-            if len(selected_folders) == 1:
-                old_name = selected_folders[0]
-                while True:
-                    new_name = input(f"Введите новое имя для папки '{old_name}' (или '0' для отмены): ").strip()
-                    if new_name == '0':
-                        break
-                    
-                    sanitized_name = sanitize_folder_name(new_name)
-                    if sanitized_name != new_name:
-                        print(f"Имя папки было изменено на '{sanitized_name}' из-за недопустимых символов.")
-                        choice = input("Продолжить с этим именем? (да/нет): ").lower()
-                        if choice != 'да':
-                            continue
+                        try:
+                            os.rename(old_path, new_path)
+                            self.tree.item(item, text=new_name)
+                            renamed_count += 1
+                        except OSError as e:
+                            messagebox.showerror("Ошибка", f"Не удалось переименовать папку '{old_name}': {e}")
 
-                    old_path = os.path.join(theme_path, old_name)
-                    new_path = os.path.join(theme_path, sanitized_name)
-                    
-                    if os.path.exists(new_path):
-                        print(f"Папка с именем '{sanitized_name}' уже существует. Выберите другое имя.")
-                        continue
-                    
-                    os.rename(old_path, new_path)
+                if renamed_count > 0:
+                    messagebox.showinfo("Информация", f"Переименовано папок: {renamed_count}")
+                else:
+                    messagebox.showinfo("Информация", "Ни одна папка не была переименована.")
+
+                dialog.destroy()
+                self.update_tree(sorted_folder_name)
+
+            ttk.Button(dialog, text="Заменить", command=perform_replace).pack(pady=10)
+
+    def write(self, text):
+        self.queue.put(text)
+
+    def flush(self):
+        pass
+
+    def process_queue(self):
+        try:
+            while True:
+                text = self.queue.get_nowait()
+                self.console.insert(tk.END, text)
+                self.console.see(tk.END)
+        except queue.Empty:
+            pass
+        finally:
+            self.after(100, self.process_queue)
+
+    def on_double_click(self, event):
+        item = self.tree.identify('item', event.x, event.y)
+        if item:
+            self.rename_item(item)
+
+    def rename_item(self, item):
+        old_name = self.tree.item(item)['text']
+        new_name = simpledialog.askstring("Переименование папки", f"Введите новое имя для папки '{old_name}':")
+        if new_name and new_name != old_name:
+            parent = self.tree.parent(item)
+            if parent:  # Это подпапка
+                theme_path = os.path.join(os.path.dirname(__file__), sorted_folder_name, self.tree.item(parent)['text'])
+            else:  # Это тема
+                theme_path = os.path.join(os.path.dirname(__file__), sorted_folder_name)
+            
+            old_path = os.path.join(theme_path, old_name)
+            new_path = os.path.join(theme_path, new_name)
+
+            try:
+                os.rename(old_path, new_path)
+                self.tree.item(item, text=new_name)
+                self.console.insert(tk.END, f"Папка переименована с '{old_name}' на '{new_name}'\n")
+                self.console.see(tk.END)
+                
+                # Обновляем информацию в self.folder_ids
+                folder_uid = self.tree.item(item)['values'][0]
+                theme_name, _ = self.folder_ids[folder_uid]
+                self.folder_ids[folder_uid] = (theme_name, new_name)
+            except OSError as e:
+                messagebox.showerror("Ошибка", f"Не удалось переименовать папку: {e}")
+
+    def populate_tree(self, sorted_folder_name):
+        self.tree.delete(*self.tree.get_children())
+        self.folder_ids = {}
+        sorted_path = os.path.join(os.path.dirname(__file__), sorted_folder_name)
+        docx_folder = os.path.join(os.path.dirname(__file__), f'docx_{date_range}')
+        
+        for theme in os.listdir(sorted_path):
+            theme_path = os.path.join(sorted_path, theme)
+            if os.path.isdir(theme_path):
+                theme_uid = str(uuid.uuid4())
+                self.folder_ids[theme_uid] = (theme, None)
+                theme_id = self.tree.insert('', 'end', text=theme, values=(theme_uid,))
+                for subfolder in os.listdir(theme_path):
+                    subfolder_path = os.path.join(theme_path, subfolder)
+                    if os.path.isdir(subfolder_path):
+                        folder_uid = str(uuid.uuid4())
+                        self.folder_ids[folder_uid] = (theme, subfolder)
+                        
+                        docx_file = os.path.join(docx_folder, f"{subfolder}.docx")
+                        tags = ('green',) if os.path.exists(docx_file) else ()
+                        self.tree.insert(theme_id, 'end', text=subfolder, tags=tags, values=(folder_uid,))
+
+    def update_tree(self, sorted_folder_name):
+        # Сохраняем состояние развернутости по тексту элементов
+        expanded_items = [self.tree.item(item, 'text') for item in self.tree.get_children() if self.tree.item(item, 'open')]
+        
+        # Обновляем дерево
+        self.populate_tree(sorted_folder_name)
+        
+        # Восстанавливаем состояние развернутости
+        for item in self.tree.get_children():
+            if self.tree.item(item, 'text') in expanded_items:
+                self.tree.item(item, open=True)
+
+    def merge_selected(self):
+        selected_items = self.tree.selection()
+        if len(selected_items) < 2:
+            messagebox.showwarning("Предупреждение", "Выберите как минимум две папки для объединения.")
+            return
+
+        parent = self.tree.parent(selected_items[0])
+        if not all(self.tree.parent(item) == parent for item in selected_items):
+            messagebox.showwarning("Предупреждение", "Выбранные папки должны находиться в одной теме.")
+            return
+
+        new_folder_name = simpledialog.askstring("Объединение папок", "Введите имя новой папки:")
+        if not new_folder_name:
+            return
+
+        theme_path = os.path.join(os.path.dirname(__file__), sorted_folder_name, self.tree.item(parent)['text'])
+        new_folder_path = os.path.join(theme_path, new_folder_name)
+
+        # Если папка уже существует, используем ее, иначе создаем новую
+        if not os.path.exists(new_folder_path):
+            os.makedirs(new_folder_path)
+
+        for item in selected_items:
+            folder_name = self.tree.item(item)['text']
+            folder_path = os.path.join(theme_path, folder_name)
+            if folder_path != new_folder_path:  # Пропускаем папку, если она совпадает с целевой
+                for file_name in os.listdir(folder_path):
+                    source_file = os.path.join(folder_path, file_name)
+                    dest_file = os.path.join(new_folder_path, file_name)
+                    try:
+                        if not os.path.exists(dest_file):
+                            shutil.move(source_file, dest_file)
+                        else:
+                            # Если файл уже существует, добавляем уникальный суффикс
+                            base, ext = os.path.splitext(file_name)
+                            counter = 1
+                            while os.path.exists(dest_file):
+                                dest_file = os.path.join(new_folder_path, f"{base}_{counter}{ext}")
+                                counter += 1
+                            shutil.move(source_file, dest_file)
+                    except PermissionError:
+                        print(f"Не удалось переместить файл {source_file}. Возможно, он открыт в другом приложении.")
+
+                # Удаляем пустую папку после перемещения всех файлов
+                if not os.listdir(folder_path):
+                    os.rmdir(folder_path)
+                else:
+                    print(f"Папка {folder_path} не пуста и не может быть удалена.")
+
+        self.update_tree(sorted_folder_name)
+
+    def create_docx(self):
+        selected_items = self.tree.selection()
+        if not selected_items:
+            messagebox.showwarning("Предупреждение", "Выберите папки или темы для создания DOCX.")
+            return
+
+        prefix = simpledialog.askstring("Префикс", "Введите префикс для имен файлов (или оставьте пустым):")
+
+        folders_to_process = []
+
+        for item in selected_items:
+            if self.tree.parent(item) == '':  # Это папка темы
+                for subitem in self.tree.get_children(item):
+                    folder_uid = self.tree.item(subitem)['values'][0]
+                    theme_name, folder_name = self.folder_ids[folder_uid]
+                    folder_path = os.path.join(os.path.dirname(__file__), sorted_folder_name, theme_name, folder_name)
+                    folders_to_process.append((folder_path, folder_name, prefix, folder_uid))
+                    self.tree.item(subitem, tags=('gray',))
+            else:  # Это подпапка
+                folder_uid = self.tree.item(item)['values'][0]
+                theme_name, folder_name = self.folder_ids[folder_uid]
+                folder_path = os.path.join(os.path.dirname(__file__), sorted_folder_name, theme_name, folder_name)
+                folders_to_process.append((folder_path, folder_name, prefix, folder_uid))
+                self.tree.item(item, tags=('gray',))
+
+        if not folders_to_process:
+            messagebox.showwarning("Предупреждение", "Нет папок для обработки.")
+            return
+
+        self.total_tasks += len(folders_to_process)
+        self.completed_tasks = 0
+        self.progress["maximum"] = 100
+        self.update_progress()
+
+        self.open_summary_button.config(state='disabled')
+        self.is_processing_docx = True
+
+        for folder_info in folders_to_process:
+            self.task_queue.put(folder_info)
+
+        self.tree.selection_remove(self.tree.selection())
+
+        if not self.processing:
+            self.process_task_queue()
+
+    def process_task_queue(self):
+        if not self.task_queue.empty() and not self.processing:
+            self.processing = True
+            folder_path, folder_name, prefix, folder_uid = self.task_queue.get()
+            threading.Thread(target=self.process_folder, args=(folder_path, folder_name, prefix, folder_uid), daemon=True).start()
+        elif self.task_queue.empty() and self.is_processing_docx and self.completed_tasks == self.total_tasks:
+            # Все задачи выполнены
+            self.is_processing_docx = False
+            self.after(0, self.reset_progress)
+            self.update_summary_button_state()
+        self.after(100, self.process_task_queue)
+
+    def process_folder(self, folder_path, folder_name, prefix, folder_uid):
+        try:
+            pythoncom.CoInitialize()
+            sys.stdout = self
+            sys.stderr = self
+            
+            # Получаем актуальное имя папки из self.folder_ids
+            _, actual_folder_name = self.folder_ids[folder_uid]
+            actual_folder_path = os.path.join(os.path.dirname(folder_path), actual_folder_name)
+            
+            print(f"\n--- Начало обработки папки: {actual_folder_name} ---")
+            status = process_photos_and_create_docx(actual_folder_path, actual_folder_name, prefix)
+            print(f"--- Завершение обработки папки: {actual_folder_name} ---\n")
+            
+            # Обновляем цвет папки в дереве после создания DOCX
+            self.after(0, lambda: self.update_folder_color(folder_uid))
+            
+            # Обновляем прогресс
+            self.completed_tasks += 1
+            self.after(0, self.update_progress)
+        except Exception as e:
+            print(f"Ошибка при обработке папки {actual_folder_name}: {str(e)}")
+        finally:
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+            pythoncom.CoUninitialize()
+            self.processing = False
+
+    def update_folder_color(self, folder_uid):
+        for item in self.tree.get_children():
+            for subitem in self.tree.get_children(item):
+                if self.tree.item(subitem, 'values')[0] == folder_uid:
+                    self.tree.item(subitem, tags=('green',))
+                    return
+            if self.tree.item(item, 'values')[0] == folder_uid:
+                self.tree.item(item, tags=('green',))
+                return
+
+    def update_progress(self):
+        if self.total_tasks > 0:
+            percent = int((self.completed_tasks / self.total_tasks) * 100)
+            self.progress["value"] = percent
+            self.progress_label.config(text=f"Обработка: {percent}%")
+            if percent == 100:
+                self.progress_label.config(text="Готово")
+        else:
+            self.progress["value"] = 0
+            self.progress_label.config(text="Готово")
+
+    def reset_progress(self):
+        self.progress["value"] = 100
+        self.progress_label.config(text="Готово")
+        self.total_tasks = 0
+        self.completed_tasks = 0
+
+    def start_processing(self):
+        json_file = os.path.join(os.path.dirname(__file__), 'result.json')
+        
+        def run_processing():
+            self.after(0, lambda: self.update_status("Обновление тем..."))
+            update_themes(json_file)
+            self.after(0, lambda: self.update_status("Обработка JSON..."))
+            process_json(json_file)
+            self.after(0, lambda: self.update_status("Готово"))
+            self.after(0, lambda: self.populate_tree(sorted_folder_name))
+
+        threading.Thread(target=run_processing, daemon=True).start()
+
+    def update_summary_button_state(self):
+        docx_folder = os.path.join(os.path.dirname(__file__), f'docx_{date_range}')
+        summary_file = os.path.join(docx_folder, 'Содержание.xlsm')
+        if os.path.exists(summary_file) and not self.is_processing_docx and self.completed_tasks == self.total_tasks:
+            self.open_summary_button.config(state='normal')
+        else:
+            self.open_summary_button.config(state='disabled')
+        self.after(1000, self.update_summary_button_state)  # Проверяем каждую секунду
+
+    def open_summary(self):
+        docx_folder = os.path.join(os.path.dirname(__file__), f'docx_{date_range}')
+        summary_file = os.path.join(docx_folder, 'Содержание.xlsm')
+        if os.path.exists(summary_file):
+            os.startfile(summary_file)
+        else:
+            messagebox.showwarning("Предупреждение", "Файл содержания не найден.")
+
+    def update_folder_color(self, folder_uid):
+        for item in self.tree.get_children():
+            for subitem in self.tree.get_children(item):
+                if self.tree.item(subitem, 'values')[0] == folder_uid:
+                    self.tree.item(subitem, tags=('green',))
                     break
-            
-            elif len(selected_folders) >= 2:
-                while True:
-                    target_folder = input("Введите имя новой подпапки для слияния (или '0' для отмены): ").strip()
-                    if target_folder == '0':
-                        break
-                    
-                    sanitized_name = sanitize_folder_name(target_folder)
-                    if sanitized_name != target_folder:
-                        print(f"Имя папки было изменено на '{sanitized_name}' из-за недопустимых символов.")
-                        choice = input("Продолжить с этим именем? (да/нет): ").lower()
-                        if choice != 'да':
-                            continue
 
-                    target_path = os.path.join(theme_path, sanitized_name)
-                    
-                    if not os.path.exists(target_path):
-                        os.makedirs(target_path, exist_ok=True)
-                    
-                    for folder in selected_folders:
-                        if folder != sanitized_name:
-                            source_path = os.path.join(theme_path, folder)
-                            for item in os.listdir(source_path):
-                                s = os.path.join(source_path, item)
-                                d = os.path.join(target_path, item)
-                                if os.path.isdir(s):
-                                    shutil.copytree(s, d, dirs_exist_ok=True)
-                                else:
-                                    if os.path.exists(d):
-                                        base, extension = os.path.splitext(d)
-                                        counter = 1
-                                        while os.path.exists(d):
-                                            d = f"{base}_{counter}{extension}"
-                                            counter += 1
-                                    shutil.copy2(s, d)
-                            shutil.rmtree(source_path)
-                    break
+    def update_status(self, message):
+        self.status_label.config(text=message)
 
-            subfolders = sorted([f for f in os.listdir(theme_path) if os.path.isdir(os.path.join(theme_path, f))])
+def main():
+    app = Application()
+    app.after(100, app.start_processing)
+    app.mainloop()
 
-    return None
-
-json_file = os.path.join(os.path.dirname(__file__), 'result.json')
-
-update_themes(json_file)
-
-process_json(json_file)
-
-merge_folders(sorted_folder_name)
-
-print("Программа завершена.")
+if __name__ == "__main__":
+    main()
